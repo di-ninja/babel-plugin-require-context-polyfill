@@ -22,18 +22,22 @@ function getContext(folder, recursive = false, pattern, parentDir, rootDir) {
   if (!parentDir) {
     parentDir = rootDir
   }
-  const contextDir = path.join(rootPath, parentDir, folder)
+
+  let contextDir = path.join(rootPath, parentDir, folder)
+  if(contextDir.slice(-1)==='/')
+    contextDir = contextDir.slice(0, -1)
   const contextDirLen = contextDir.length + 1
 
   let normalizedFolder = parentDir ? path.resolve(parentDir, folder) : path.resolve(folder)
-  normalizedFolder = path.join(rootPath, normalizedFolder)
+  // if(normalizedFolder.slice(0, rootPath.length)!==rootPath)
+    // normalizedFolder = path.join(rootPath, normalizedFolder)
 
   const folderContents = getFolderContents(normalizedFolder, recursive)
     .filter(item => {
       return !pattern || pattern.test(item)
     })
     .map(requirePath => {
-      const key = requirePath.substr(contextDirLen)
+      const key = requirePath.slice(contextDirLen)
       return [ key , requirePath ]
     })
 
@@ -91,17 +95,25 @@ module.exports = ({ types: t }) => {
           let dirpath = dirname
 
           const babelrc = readBabelrcUp.sync()
-          const [ , resolvePathOpts = {} ] = babelrc.babel.plugins.find(plugin=>{
-            return plugin instanceof Array && plugin[0]==='module-resolver'
-          }) || []
-          dirpath = resolvePath(dirpath, file.opts.filename, resolvePathOpts)
+          
+          const dirpathForResolvePath = dirpath==='.'?'./':dirpath
+          if(babelrc && babelrc.babel){
+            const [ , resolvePathOpts = {} ] = babelrc.babel.plugins.find(plugin=>{
+              return plugin instanceof Array && plugin[0]==='module-resolver'
+            }) || []
+            dirpath = resolvePath(dirpathForResolvePath, file.opts.filename, resolvePathOpts)
+          }
+          else{
+            dirpath = resolvePath(dirpathForResolvePath, file.opts.filename)
+          }
 
           // console.log('dirpath',dirpath)
+          // console.log('rootPath',rootPath)
           // console.log('file.opts.filename',file.opts.filename)
           // console.log('resolvePathOpts',resolvePathOpts)
 
 
-          const rootDir = path.dirname(file.opts.filename).substr(rootPath.length)
+          const rootDir = path.dirname(file.opts.filename).slice(rootPath.length + 1)
           // console.log('rootDir',rootDir)
 
           const str = getContext(dirpath, recursive, regexp, parentDir, rootDir)

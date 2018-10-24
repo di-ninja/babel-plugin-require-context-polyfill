@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`sould require dirA files 1`] = `
+"const foo = function () {
+  const map = {
+    'hello.js': require('/var/www/babel-plugin-require-context-polyfill/fixtures/dirA/hello.js')
+  };
+
+  const returnContext = function (item) {
+    return map[item];
+  };
+
+  const keys = Object.keys(map);
+
+  returnContext.keys = function () {
+    return keys;
+  };
+
+  return returnContext;
+}();"
+`;
+
+exports[`sould require root project dirs 1`] = `
+"const foo = function () {
+  const map = {
+    'dirA': require('/var/www/babel-plugin-require-context-polyfill/fixtures/dirA'),
+    'testA.js': require('/var/www/babel-plugin-require-context-polyfill/fixtures/testA.js'),
+    'testB.js': require('/var/www/babel-plugin-require-context-polyfill/fixtures/testB.js')
+  };
+
+  const returnContext = function (item) {
+    return map[item];
+  };
+
+  const keys = Object.keys(map);
+
+  returnContext.keys = function () {
+    return keys;
+  };
+
+  return returnContext;
+}();"
+`;
