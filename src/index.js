@@ -17,7 +17,7 @@ function getFolderContents (folder, recursive) {
 
 const SEP = path.sep
 
-function getContext(folder, recursive = false, pattern, parentDir, rootDir) {
+function getContext(folder, recursive = false, pattern, parentDir, rootDir, lazy) {
   folder = path.normalize(folder)
   if (!parentDir) {
     parentDir = rootDir
@@ -29,8 +29,6 @@ function getContext(folder, recursive = false, pattern, parentDir, rootDir) {
   const contextDirLen = contextDir.length + 1
 
   let normalizedFolder = parentDir ? path.resolve(parentDir, folder) : path.resolve(folder)
-  // if(normalizedFolder.slice(0, rootPath.length)!==rootPath)
-    // normalizedFolder = path.join(rootPath, normalizedFolder)
 
   const folderContents = getFolderContents(normalizedFolder, recursive)
     .filter(item => {
@@ -40,32 +38,108 @@ function getContext(folder, recursive = false, pattern, parentDir, rootDir) {
       const key = requirePath.slice(contextDirLen)
       return [ key , requirePath ]
     })
-
-  // console.log('folderContents',folderContents)
-
-  const returnContext = `
-    (function(){
-      const map = {
-      `+folderContents.map(([key, requirePath])=>{
+  
+  let returnContext
+  
+  if(lazy){
+    returnContext = `
+      (function(){
+        const map = {}
+        const keys = []
+        `+folderContents.map(([key, requirePath])=>{
         requirePath = requirePath.slice(rootPath.length)
         if(requirePath.slice(0,1)==='/')
           requirePath = requirePath.slice(1)
-        return "  '"+key+"': require('"+requirePath+"')"
-      })+`
-      }
-      const returnContext = function(item){
-        return map[item]
-      }
-      returnContext.keys = function(){
-        return Object.keys(map)
-      }
-      return returnContext
-    })()
-  `
+        return `
+         Object.defineProperty(map, "${key}", { get: function () { return require('${requirePath}') } })
+         keys.push("${key}")
+         `
+        }).join('')+`
+        
+        const returnContext = function(item){
+          return map[item]
+        }
+        returnContext.keys = function(){
+          return keys
+        }
+        return returnContext
+      })()
+    `
+
+    
+  }
+  else{
+  
+    returnContext = `
+      (function(){
+        const map = {
+          `+folderContents.map(([key, requirePath])=>{
+            requirePath = requirePath.slice(rootPath.length)
+            if(requirePath.slice(0,1)==='/')
+              requirePath = requirePath.slice(1)
+            return "  '"+key+"': require('"+requirePath+"')"
+          })+`
+        }
+        
+        const returnContext = function(item){
+          return map[item]
+        }
+        returnContext.keys = function(){
+          return Object.keys(map)
+        }
+        return returnContext
+      })()
+    `
+    
+    
+  }
+  
 
   return returnContext
 }
 
+
+function replaceWithSourceString(p, state, lazy){
+  const [
+    {value: dirname} = {},
+    {value: recursive} = {},
+    {value: regexp} = {},
+    {value: parentDir} = {},
+  ] = p.node.arguments
+
+  const {
+    file,
+    opts = {},
+  } = state
+
+  const {
+    alias = {},
+  } = opts
+
+  let dirpath = dirname
+
+  const babelrc = readBabelrcUp.sync()
+  
+  const dirpathForResolvePath = dirpath==='.'?'./':dirpath
+  if(babelrc && babelrc.babel){
+    const [ , resolvePathOpts = {} ] = babelrc.babel.plugins.find(plugin=>{
+      return plugin instanceof Array && plugin[0]==='module-resolver'
+    }) || []
+    dirpath = resolvePath(dirpathForResolvePath, file.opts.filename, resolvePathOpts)
+  }
+  else{
+    dirpath = resolvePath(dirpathForResolvePath, file.opts.filename)
+  }
+
+  const rootDir = path.dirname(file.opts.filename).slice(rootPath.length + 1)
+
+  const str = getContext(dirpath, recursive, regexp, parentDir, rootDir, lazy)
+
+  // console.log(str)
+  // throw new Error('dev')
+
+  p.replaceWithSourceString(str)
+}
 
 module.exports = ({ types: t }) => {
   return {
@@ -74,57 +148,15 @@ module.exports = ({ types: t }) => {
       CallExpression: (p, state) => {
         if (
           t.isMemberExpression(p.node.callee, { computed: false }) &&
-          t.isIdentifier(p.get('callee').node.object, { name: 'require' }) &&
-          t.isIdentifier(p.get('callee').node.property, { name: 'context' })
+          t.isIdentifier(p.get('callee').node.object, { name: 'require' })
         ) {
-
-          const [
-            {value: dirname} = {},
-            {value: recursive} = {},
-            {value: regexp} = {},
-            {value: parentDir} = {},
-          ] = p.node.arguments
-
-          const {
-            file,
-            opts = {},
-          } = state
-
-          const {
-            alias = {},
-          } = opts
-
-          let dirpath = dirname
-
-          const babelrc = readBabelrcUp.sync()
           
-          const dirpathForResolvePath = dirpath==='.'?'./':dirpath
-          if(babelrc && babelrc.babel){
-            const [ , resolvePathOpts = {} ] = babelrc.babel.plugins.find(plugin=>{
-              return plugin instanceof Array && plugin[0]==='module-resolver'
-            }) || []
-            dirpath = resolvePath(dirpathForResolvePath, file.opts.filename, resolvePathOpts)
-          }
-          else{
-            dirpath = resolvePath(dirpathForResolvePath, file.opts.filename)
-          }
-
-          // console.log('dirpath',dirpath)
-          // console.log('rootPath',rootPath)
-          // console.log('file.opts.filename',file.opts.filename)
-          // console.log('resolvePathOpts',resolvePathOpts)
-
-
-          const rootDir = path.dirname(file.opts.filename).slice(rootPath.length + 1)
-          // console.log('rootDir',rootDir)
-
-          const str = getContext(dirpath, recursive, regexp, parentDir, rootDir)
-
-          // console.log(str)
-          // throw new Error('dev')
-
-          p.replaceWithSourceString(str)
-
+          if(t.isIdentifier(p.get('callee').node.property, { name: 'context' }))
+            replaceWithSourceString(p, state)
+          
+          if(t.isIdentifier(p.get('callee').node.property, { name: 'contextLazy' }))
+            replaceWithSourceString(p, state, true)
+            
         }
       }
     }
