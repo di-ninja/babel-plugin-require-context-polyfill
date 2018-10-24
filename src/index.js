@@ -39,60 +39,42 @@ function getContext(folder, recursive = false, pattern, parentDir, rootDir, lazy
       return [ key , requirePath ]
     })
   
-  let returnContext
-  
-  if(lazy){
-    returnContext = `
-      (function(){
-        const map = {}
-        const keys = []
+  const returnContext = `
+    (function(){
+      const map = Object.defineProperties({}, {
         `+folderContents.map(([key, requirePath])=>{
-        requirePath = requirePath.slice(rootPath.length)
-        if(requirePath.slice(0,1)==='/')
-          requirePath = requirePath.slice(1)
-        return `
-         Object.defineProperty(map, "${key}", { get: function () { return require('${requirePath}') } })
-         keys.push("${key}")
-         `
-        }).join('')+`
-        
-        const returnContext = function(item){
-          return map[item]
-        }
-        returnContext.keys = function(){
-          return keys
-        }
-        return returnContext
-      })()
-    `
-
-    
-  }
-  else{
-  
-    returnContext = `
-      (function(){
-        const map = {
-          `+folderContents.map(([key, requirePath])=>{
-            requirePath = requirePath.slice(rootPath.length)
-            if(requirePath.slice(0,1)==='/')
-              requirePath = requirePath.slice(1)
-            return "  '"+key+"': require('"+requirePath+"')"
-          })+`
-        }
-        
-        const returnContext = function(item){
-          return map[item]
-        }
-        returnContext.keys = function(){
-          return Object.keys(map)
-        }
-        return returnContext
-      })()
-    `
-    
-    
-  }
+      requirePath = requirePath.slice(rootPath.length)
+      if(requirePath.slice(0,1)==='/')
+        requirePath = requirePath.slice(1)
+      let accessor
+      if(lazy){
+        accessor = `
+        get(){ return require("${requirePath}") },
+      `
+      }
+      else{
+        accessor = `
+        value: require("${requirePath}"),
+      `
+      }
+      return `
+        "${key}": {
+          ${accessor}
+          enumerable: true,
+        },
+       `
+      }).join('')+`
+      })
+      
+      const returnContext = function(item){
+        return map[item]
+      }
+      returnContext.keys = function(){
+        return Object.keys(map)
+      }
+      return returnContext
+    })()
+  `
   
 
   return returnContext
