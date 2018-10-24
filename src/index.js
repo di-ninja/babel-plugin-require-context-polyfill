@@ -47,15 +47,17 @@ function getContext(folder, recursive = false, pattern, parentDir, rootDir) {
     (function(){
       const map = {
       `+folderContents.map(([key, requirePath])=>{
+        requirePath = requirePath.slice(rootPath.length)
+        if(requirePath.slice(0,1)==='/')
+          requirePath = requirePath.slice(1)
         return "  '"+key+"': require('"+requirePath+"')"
       })+`
       }
       const returnContext = function(item){
         return map[item]
       }
-      const keys = Object.keys(map)
       returnContext.keys = function(){
-        return keys
+        return Object.keys(map)
       }
       return returnContext
     })()
