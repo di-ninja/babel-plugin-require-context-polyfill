@@ -3,17 +3,15 @@
 exports[`sould require dirA files 1`] = `
 "const foo = function () {
   const map = {
-    'hello.js': require('/var/www/babel-plugin-require-context-polyfill/fixtures/dirA/hello.js')
+    'hello.js': require('fixtures/dirA/hello.js')
   };
 
   const returnContext = function (item) {
     return map[item];
   };
 
-  const keys = Object.keys(map);
-
   returnContext.keys = function () {
-    return keys;
+    return Object.keys(map);
   };
 
   return returnContext;
@@ -23,19 +21,17 @@ exports[`sould require dirA files 1`] = `
 exports[`sould require root project dirs 1`] = `
 "const foo = function () {
   const map = {
-    'dirA': require('/var/www/babel-plugin-require-context-polyfill/fixtures/dirA'),
-    'testA.js': require('/var/www/babel-plugin-require-context-polyfill/fixtures/testA.js'),
-    'testB.js': require('/var/www/babel-plugin-require-context-polyfill/fixtures/testB.js')
+    'dirA': require('fixtures/dirA'),
+    'testA.js': require('fixtures/testA.js'),
+    'testB.js': require('fixtures/testB.js')
   };
 
   const returnContext = function (item) {
     return map[item];
   };
 
-  const keys = Object.keys(map);
-
   returnContext.keys = function () {
-    return keys;
+    return Object.keys(map);
   };
 
   return returnContext;
