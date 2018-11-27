@@ -4,7 +4,8 @@ const fs = require('fs')
 const { resolvePath } = require('babel-plugin-module-resolver')
 const readBabelrcUp = require('read-babelrc-up')
 
-const rootPath = process.cwd()
+// const rootPath = process.cwd()
+let rootPath
 
 function getFolderContents (folder, recursive) {
   return fs.readdirSync(folder).reduce(function (list, file) {
@@ -75,7 +76,6 @@ function getContext(folder, recursive = false, pattern, parentDir, rootDir, lazy
       return returnContext
     })()
   `
-  
 
   return returnContext
 }
@@ -102,6 +102,8 @@ function replaceWithSourceString(p, state, lazy){
 
   const babelrc = readBabelrcUp.sync()
   
+  //TODO require babel.config.js if exists
+  
   const dirpathForResolvePath = dirpath==='.'?'./':dirpath
   if(babelrc && babelrc.babel){
     const [ , resolvePathOpts = {} ] = babelrc.babel.plugins.find(plugin=>{
@@ -116,31 +118,34 @@ function replaceWithSourceString(p, state, lazy){
   const rootDir = path.dirname(file.opts.filename).slice(rootPath.length + 1)
 
   const str = getContext(dirpath, recursive, regexp, parentDir, rootDir, lazy)
-
+  
   // console.log(str)
   // throw new Error('dev')
 
   p.replaceWithSourceString(str)
+  p.addComment('leading',`!@compileDependencies(["`+dirpath+`/"])`)
 }
 
 module.exports = ({ types: t }) => {
   return {
     name: 'require-context-polyfill',
+    pre: (state)=>{
+      rootPath = state.opts.cwd
+    },
     visitor: {
       CallExpression: (p, state) => {
         if (
           t.isMemberExpression(p.node.callee, { computed: false }) &&
           t.isIdentifier(p.get('callee').node.object, { name: 'require' })
         ) {
-          
-          if(t.isIdentifier(p.get('callee').node.property, { name: 'context' }))
+          if(t.isIdentifier(p.get('callee').node.property, { name: 'context' })){
             replaceWithSourceString(p, state)
-          
-          if(t.isIdentifier(p.get('callee').node.property, { name: 'contextLazy' }))
+          }
+          if(t.isIdentifier(p.get('callee').node.property, { name: 'contextLazy' })){
             replaceWithSourceString(p, state, true)
-            
+          }
         }
       }
-    }
+    },
   }
 }
