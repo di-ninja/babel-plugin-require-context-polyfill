@@ -1,7 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`sould require dirA files 1`] = `
-"const foo = function () {
+"const foo =
+/*!@compileDependencies([\\"./dirA/\\"])*/
+function () {
   const map = Object.defineProperties({}, {
     \\"hello.js\\": {
       value: require(\\"fixtures/dirA/hello.js\\"),
@@ -22,7 +24,9 @@ exports[`sould require dirA files 1`] = `
 `;
 
 exports[`sould require root project dirs 1`] = `
-"const foo = function () {
+"const foo =
+/*!@compileDependencies([\\".//\\"])*/
+function () {
   const map = Object.defineProperties({}, {
     \\"dirA\\": {
       value: require(\\"fixtures/dirA\\"),

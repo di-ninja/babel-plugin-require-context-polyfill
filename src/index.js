@@ -2,7 +2,7 @@ const path = require('path')
 const fs = require('fs')
 
 const { resolvePath } = require('babel-plugin-module-resolver')
-const readBabelrcUp = require('read-babelrc-up')
+const findBabelConfig = require('find-babel-config')
 
 // const rootPath = process.cwd()
 let rootPath
@@ -100,13 +100,13 @@ function replaceWithSourceString(p, state, lazy){
 
   let dirpath = dirname
 
-  const babelrc = readBabelrcUp.sync()
+  const {config} = findBabelConfig.sync()
   
   //TODO require babel.config.js if exists
   
   const dirpathForResolvePath = dirpath==='.'?'./':dirpath
-  if(babelrc && babelrc.babel){
-    const [ , resolvePathOpts = {} ] = babelrc.babel.plugins.find(plugin=>{
+  if(config){
+    const [ , resolvePathOpts = {} ] = config.plugins.find(plugin=>{
       return plugin instanceof Array && plugin[0]==='module-resolver'
     }) || []
     dirpath = resolvePath(dirpathForResolvePath, file.opts.filename, resolvePathOpts)
