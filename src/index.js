@@ -123,7 +123,7 @@ function replaceWithSourceString(p, state, lazy){
   // throw new Error('dev')
 
   p.replaceWithSourceString(str)
-  p.addComment('leading',`!@compileDependencies(["`+dirpath+`/"])`)
+  p.addComment('leading',`!@compileDependencies({"`+dirpath+`/": {change: false}})`)
 }
 
 module.exports = ({ types: t }) => {
